@@ -1,1 +1,1 @@
-# fatwa
+# index.html
