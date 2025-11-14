@@ -430,7 +430,7 @@ const App = () => {
   const [fatwas, setFatwas] = useState([]);
   const [selectedFatwa, setSelectedFatwa] = useState(null);
   const [relatedFatwas, setRelatedFatwas] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [listTitle, setListTitle] = useState('فتاوى مختارة');
   const [theme, setTheme] = useState(() => {
@@ -516,6 +516,7 @@ const App = () => {
   const searchFatwas = useCallback(async (query) => {
     setIsLoading(true);
     setError(null);
+    setSelectedFatwa(null);
     setRelatedFatwas([]);
     
     try {
@@ -540,7 +541,6 @@ const App = () => {
     
     setIsLoading(true);
     setError(null);
-    setFatwas([]); // Clear search results when viewing a single fatwa
     
     try {
         const fullFatwa = await fetchFatwaDetails(id);
@@ -567,16 +567,11 @@ const App = () => {
             } else {
                 window.location.hash = '#/'; // Go to home for invalid ID
             }
-        } else { // Hash is empty or something else, show list
-            if (selectedFatwa || error) {
+        } else { // Hash is empty or something else, show list view
+            // When navigating back to list view, clear the selected fatwa
+            if (selectedFatwa) {
               setSelectedFatwa(null);
               setRelatedFatwas([]);
-              setError(null);
-            }
-            if (fatwas.length === 0 && !isLoading) {
-                 const randomTerm = RANDOM_SEARCH_TERMS[Math.floor(Math.random() * RANDOM_SEARCH_TERMS.length)];
-                 setListTitle('فتاوى مختارة');
-                 searchFatwas(randomTerm);
             }
         }
     };
@@ -587,7 +582,18 @@ const App = () => {
     return () => {
         window.removeEventListener('hashchange', handleHashChange);
     };
-  }, [viewFatwaById, searchFatwas, fatwas.length, isLoading, selectedFatwa, error]);
+  }, [viewFatwaById, selectedFatwa]);
+  
+  // Effect for loading initial questions
+  useEffect(() => {
+    // Only run this if we are on the main page (no fatwa ID in hash) and we don't have fatwas yet.
+    if ((!window.location.hash || window.location.hash === '#/') && fatwas.length === 0) {
+        setIsLoading(true);
+        setListTitle('فتاوى مختارة');
+        const randomTerm = RANDOM_SEARCH_TERMS[Math.floor(Math.random() * RANDOM_SEARCH_TERMS.length)];
+        searchFatwas(randomTerm);
+    }
+  }, [fatwas.length, searchFatwas]);
 
   const handleSearch = (query) => {
     const potentialId = parseInt(query.trim(), 10);
@@ -595,7 +601,7 @@ const App = () => {
         window.location.hash = `#/fatwa/${potentialId}`;
     } else {
         setListTitle(`نتائج البحث عن: "${query}"`);
-        if (window.location.hash) {
+        if (window.location.hash && window.location.hash !== '#/') {
             window.location.hash = '#/';
         }
         searchFatwas(query);
